@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background/flutter_background.dart';
-import 'package:livekit_client/livekit_client.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:livekit_client/livekit_client.dart';
 
+import '../constants.dart';
 import '../exts.dart';
 
 class ControlsWidget extends StatefulWidget {
@@ -273,6 +277,101 @@ class _ControlsWidgetState extends State<ControlsWidget> {
     }
   }
 
+  Future<String> _imageToBase64(String imagePath) async {
+    final bytes = await File(imagePath).readAsBytes();
+    return base64Encode(bytes);
+  }
+
+  Future<void> _uploadImage(String base64Image) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${Constants.apiBaseUrl}/add-picture'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'base64_image': base64Image,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to upload image: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error uploading image: $e');
+      rethrow;
+    }
+  }
+
+  void _openPhotoGallery() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final List<XFile>? images = await picker.pickMultiImage(
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (images != null && images.isNotEmpty) {
+        // Show loading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Uploading images...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Process images in batches of 10
+        for (var i = 0; i < images.length; i += 10) {
+          final batch = images.skip(i).take(10).toList();
+
+          // Convert and upload images concurrently
+          await Future.wait(
+            batch.map((image) async {
+              try {
+                final base64Image = await _imageToBase64(image.path);
+                await _uploadImage(base64Image);
+                print('Successfully uploaded image: ${image.path}');
+              } catch (e) {
+                print('Failed to upload image ${image.path}: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to upload image: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            }),
+          );
+        }
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully uploaded ${images.length} images'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error picking images: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -285,11 +384,11 @@ class _ControlsWidgetState extends State<ControlsWidget> {
         spacing: 5,
         runSpacing: 5,
         children: [
-          IconButton(
-            onPressed: _unpublishAll,
-            icon: const Icon(Icons.cancel),
-            tooltip: 'Unpublish all',
-          ),
+          // IconButton(
+          //   onPressed: _unpublishAll,
+          //   icon: const Icon(Icons.cancel),
+          //   tooltip: 'Unpublish all',
+          // ),
           if (participant.isMicrophoneEnabled())
             if (lkPlatformIs(PlatformType.android))
               IconButton(
@@ -441,37 +540,42 @@ class _ControlsWidgetState extends State<ControlsWidget> {
             onPressed: () => _toggleCamera(),
             tooltip: 'toggle camera',
           ),
-          if (participant.isScreenShareEnabled())
-            IconButton(
-              icon: const Icon(Icons.monitor_outlined),
-              onPressed: () => _disableScreenShare(),
-              tooltip: 'unshare screen (experimental)',
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.monitor),
-              onPressed: () => _enableScreenShare(),
-              tooltip: 'share screen (experimental)',
-            ),
+          // if (participant.isScreenShareEnabled())
+          //   IconButton(
+          //     icon: const Icon(Icons.monitor_outlined),
+          //     onPressed: () => _disableScreenShare(),
+          //     tooltip: 'unshare screen (experimental)',
+          //   )
+          // else
+          //   IconButton(
+          //     icon: const Icon(Icons.monitor),
+          //     onPressed: () => _enableScreenShare(),
+          //     tooltip: 'share screen (experimental)',
+          //   ),
           IconButton(
             onPressed: _onTapDisconnect,
             icon: const Icon(Icons.close_sharp),
             tooltip: 'disconnect',
           ),
+          // IconButton(
+          //   onPressed: _onTapSendData,
+          //   icon: const Icon(Icons.message),
+          //   tooltip: 'send demo data',
+          // ),
+          // IconButton(
+          //   onPressed: _onTapUpdateSubscribePermission,
+          //   icon: const Icon(Icons.settings),
+          //   tooltip: 'Subscribe permission',
+          // ),
+          // IconButton(
+          //   onPressed: _onTapSimulateScenario,
+          //   icon: const Icon(Icons.bug_report),
+          //   tooltip: 'Simulate scenario',
+          // ),
           IconButton(
-            onPressed: _onTapSendData,
-            icon: const Icon(Icons.message),
-            tooltip: 'send demo data',
-          ),
-          IconButton(
-            onPressed: _onTapUpdateSubscribePermission,
-            icon: const Icon(Icons.settings),
-            tooltip: 'Subscribe permission',
-          ),
-          IconButton(
-            onPressed: _onTapSimulateScenario,
-            icon: const Icon(Icons.bug_report),
-            tooltip: 'Simulate scenario',
+            onPressed: _openPhotoGallery,
+            icon: const Icon(Icons.photo_library),
+            tooltip: 'Open photo gallery',
           ),
         ],
       ),

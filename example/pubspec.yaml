@@ -1,6 +1,6 @@
 name: livekit_example
 description: Example app that uses LiveKit Flutter SDK
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0
 
@@ -20,7 +20,9 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_svg: ^2.0.5
   dropdown_button2: ^2.3.6
-  collection: '>=1.16.0'
+  collection: ">=1.16.0"
+  image_picker: ^1.0.7
+  http: ^1.2.0
 
   livekit_client:
     path: ../
