@@ -19,8 +19,8 @@
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
   <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
   <application
-      android:label="LiveKit Example"
-      android:icon="@mipmap/livekit_ic_launcher">
+      android:label="Louis GPTon"
+      android:icon="@mipmap/louis">
     <activity
         android:exported="true"
         android:name=".MainActivity"
